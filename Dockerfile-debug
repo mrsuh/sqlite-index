@@ -1,0 +1,16 @@
+FROM debian:bullseye
+
+RUN apt-get update
+RUN apt-get install -y g++ build-essential make cmake tcl-dev tk-dev php wget unzip
+RUN apt-get install -y imagemagick php php-sqlite3 php-imagick
+RUN apt-get install -y php-xdebug mc
+
+RUN mkdir -p /var/run/sshd
+
+RUN echo 'root:root' | chpasswd \
+    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+
+ENTRYPOINT ["/usr/sbin/sshd", "-p", "2233", "-D"]

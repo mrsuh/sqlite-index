@@ -1,0 +1,10 @@
+FROM debian:12.6-slim
+
+RUN mkdir /app
+WORKDIR /app
+
+RUN apt-get update
+RUN apt-get install -y g++ build-essential make cmake tcl-dev tk-dev php wget unzip
+RUN apt-get install -y imagemagick php php-sqlite3 php-imagick
+    
+COPY --from=composer /usr/bin/composer /usr/bin/composer

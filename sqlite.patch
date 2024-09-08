@@ -1,0 +1,446 @@
+diff --git Makefile.in Makefile.in
+index c16e1c127..1266f03bf 100644
+--- Makefile.in
++++ Makefile.in
+@@ -213,6 +213,8 @@ SRC = \
+   $(TOP)/src/attach.c \
+   $(TOP)/src/auth.c \
+   $(TOP)/src/backup.c \
++  $(TOP)/src/debug.c \
++  $(TOP)/src/debug.h \
+   $(TOP)/src/bitvec.c \
+   $(TOP)/src/btmutex.c \
+   $(TOP)/src/btree.c \
+diff --git src/btree.c src/btree.c
+index 62b898979..bf987cdcb 100644
+--- src/btree.c
++++ src/btree.c
+@@ -14,6 +14,7 @@
+ ** Including a description of file format and an overview of operation.
+ */
+ #include "btreeInt.h"
++#include "debug.h"
+ 
+ /*
+ ** The header string that appears at the beginning of every
+@@ -5482,6 +5483,10 @@ static int moveToRoot(BtCursor *pCur){
+   MemPage *pRoot;
+   int rc = SQLITE_OK;
+ 
++  if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++    printf("sqlite3DebugMoveToRoot:\n");
++  }
++
+   assert( cursorOwnsBtShared(pCur) );
+   assert( CURSOR_INVALID < CURSOR_REQUIRESEEK );
+   assert( CURSOR_VALID   < CURSOR_REQUIRESEEK );
+@@ -5945,6 +5950,36 @@ int sqlite3BtreeIndexMoveto(
+   int rc;
+   RecordCompare xRecordCompare;
+ 
++  if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++    int nField = pIdxKey->nField;
++    char *memoryPayload[nField];
++
++    int memoryPayloadSize = 0;
++    Mem *mem = pIdxKey->aMem;
++    for (int i = 0; i < nField; i++) {
++      memoryPayload[i] = sqlite3DebugGetMemoryPayload(mem);
++      memoryPayloadSize += sizeof(memoryPayload[i]);
++      mem++;
++    }
++
++    int payloadSize = memoryPayloadSize + nField * 10;
++    char payload[payloadSize / sizeof(char)];
++    memset(&payload, 0, payloadSize);
++    for (int i = 0; i < nField; i++) {
++      strcat(payload, memoryPayload[i]);
++      if (i < nField - 1)
++      {
++        strcat(payload, ":");
++      }
++    }
++
++    for (int i = 0; i < nField; i++) {
++      sqlite3DebugFreeMemoryPayload(memoryPayload[i]);
++    }
++
++    printf("sqlite3DebugBtreeIndexMoveto: key=%s, nField=%d\n", payload, nField);
++  }
++
+   assert( cursorOwnsBtShared(pCur) );
+   assert( sqlite3_mutex_held(pCur->pBtree->db->mutex) );
+   assert( pRes );
+@@ -6036,6 +6071,18 @@ bypass_moveto_root:
+       int nCell;  /* Size of the pCell cell in bytes */
+       pCell = findCellPastPtr(pPage, idx);
+ 
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        char **payload = sqlite3DebugGetCellPayloadAndRowId(pCur, pPage, idx);
++        printf(
++            "sqlite3DebugBtreeIndexMoveto: pageNumber=%d, cellNumber=%d, payload=%s, rowId=%s\n",
++            pPage->pgno,
++            idx,
++            payload[0],
++            payload[1]);
++
++        sqlite3DebugFreeCellPayloadAndRowId(payload);
++      }
++
+       /* The maximum supported page-size is 65536 bytes. This means that
+       ** the maximum number of record bytes stored on an index B-Tree
+       ** page is less than 16384 bytes and may be stored as a 2-byte
+@@ -6128,8 +6175,14 @@ bypass_moveto_root:
+     }
+     if( lwr>=pPage->nCell ){
+       chldPg = get4byte(&pPage->aData[pPage->hdrOffset+8]);
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBtreeIndexMoveto: move to right pageIndex=%d\n", chldPg);
++      }      
+     }else{
+       chldPg = get4byte(findCell(pPage, lwr));
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBtreeIndexMoveto: move to left pageIndex=%d\n", chldPg);
++      }
+     }
+ 
+     /* This block is similar to an in-lined version of:
+@@ -6283,6 +6336,11 @@ static SQLITE_NOINLINE int btreeNext(BtCursor *pCur){
+   }
+ }
+ int sqlite3BtreeNext(BtCursor *pCur, int flags){
++
++  if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++      printf("sqlite3DebugBtreeNext:\n");
++  }
++
+   MemPage *pPage;
+   UNUSED_PARAMETER( flags );  /* Used in COMDB2 but not native SQLite */
+   assert( cursorOwnsBtShared(pCur) );
+diff --git src/debug.c src/debug.c
+index e69de29bb..5f50e5720 100644
+--- src/debug.c
++++ src/debug.c
+@@ -0,0 +1,156 @@
++int sqlite3DebugIsBtreeIndexSeekEnabled() {
++    return getenv("BTREE_INDEX_SEEK") != NULL ? 1 : 0;
++}
++
++int sqlite3DebugIsBtreeIndexDumpEnabled() {
++    return getenv("BTREE_INDEX_DUMP") != NULL ? 1 : 0;
++}
++
++char *sqlite3DebugGetMemoryPayload(Mem *mem) {
++    char *payload;
++
++    if (mem->flags & (MEM_Str | MEM_Blob))
++    {
++        payload = (char *)sqlite3MallocZero(100);
++        strncpy(payload, mem->z, mem->n * sizeof(char));
++
++        return payload;
++    }
++
++    if (mem->flags & (MEM_Int | MEM_IntReal))
++    {
++        int memorySize = snprintf(NULL, 0, "%lld", mem->u.i);
++        payload = (char *)sqlite3MallocZero(memorySize + 1);
++        sprintf(payload, "%lld", mem->u.i);
++
++        return payload;
++    }
++
++    if (mem->flags & (MEM_Real))
++    {
++        int memorySize = snprintf(NULL, 0, "%.2f", mem->u.r);
++        payload = (char *)sqlite3MallocZero(memorySize + 1);
++        sprintf(payload, "%.2f", mem->u.r);
++
++        return payload;
++    }
++
++    if (mem->flags & MEM_Null)
++    {
++        payload = (char *)sqlite3MallocZero((strlen("NULL") + 1) * sizeof(char));
++        strcpy(payload, "NULL");
++        return payload;
++    }
++
++    payload = (char *)sqlite3MallocZero((strlen("UNDEFINED") + 1) * sizeof(char));
++    strcpy(payload, "UNDEFINED");
++
++    return payload;
++}
++
++void sqlite3DebugFreeMemoryPayload(char *payload) {
++    sqlite3_free(payload);
++}
++
++char **sqlite3DebugGetCellPayloadAndRowId(BtCursor *pCur, MemPage *pPage, int cellIndex) {
++    CellInfo cellInfo;
++    memset(&cellInfo, 0, sizeof(cellInfo));
++    btreeParseCell(pPage, cellIndex, &cellInfo);
++
++    UnpackedRecord *pIdxKey;
++    pIdxKey = sqlite3VdbeAllocUnpackedRecord(pCur->pKeyInfo);
++    sqlite3VdbeRecordUnpack(pCur->pKeyInfo, cellInfo.nPayload, cellInfo.pPayload, pIdxKey);
++
++    int nField = pIdxKey->nField;
++
++    char *memoryPayload[nField];
++    int memoryPayloadSize = 0;
++    Mem *mem = pIdxKey->aMem;
++    for (int i = 0; i < nField; i++)
++    {
++        memoryPayload[i] = sqlite3DebugGetMemoryPayload(mem);
++        memoryPayloadSize += sizeof(memoryPayload[i]);
++        mem++;
++    }
++
++    char **payload = (char **)sqlite3MallocZero(2 * sizeof(char *));
++    payload[0] = (char *)sqlite3MallocZero(memoryPayloadSize + (nField * 10) * sizeof(char));
++    payload[1] = (char *)sqlite3MallocZero(sizeof(memoryPayload[nField - 1]));
++    for (int i = 0; i < nField - 1; i++)
++    {
++        strcat(payload[0], memoryPayload[i]);
++        if (i < nField - 2)
++        {
++            strcat(payload[0], ":");
++        }
++    }
++
++    strcpy(payload[1], memoryPayload[nField - 1]);
++
++    for (int i = 0; i < nField; i++)
++    {
++        sqlite3DebugFreeMemoryPayload(memoryPayload[i]);
++    }
++    sqlite3DbFree(pCur->pKeyInfo->db, pIdxKey);
++
++    return payload;
++}
++
++void sqlite3DebugFreeCellPayloadAndRowId(char **payload) {
++    sqlite3_free(payload[0]);
++    sqlite3_free(payload[1]);
++    sqlite3_free(payload);
++}
++
++void sqlite3DebugBtreeIndexDump(BtCursor *pCur, int pageNumber) {
++    MemPage *pPage = NULL;
++    int rc = getAndInitPage(pCur->pBt, pageNumber, &pPage, pCur->curPagerFlags);
++    if (rc != SQLITE_OK)
++    {
++        releasePage(pPage);
++        printf("sqlite3DebugBtreeIndexDump: can't open page %d\n", pageNumber);
++        return;
++    }
++
++    if (pPage->intKey == 1)
++    {
++        releasePage(pPage);
++        return;
++    }
++
++    int childPageIndex = pPage->leaf == 0 ? get4byte(&pPage->aData[pPage->hdrOffset + 8]) : -1;
++    printf("sqlite3DebugBtreeIndexDump: page, number=%d, rightChildPageNumber=%d\n", pPage->pgno, childPageIndex);
++    int pagesCount = pPage->nCell + 1;
++    int pages[pagesCount];
++    for (int cellIndex = 0; cellIndex < pagesCount; cellIndex++)
++    {
++        pages[cellIndex] = -1;
++    }
++
++    pages[0] = childPageIndex;
++
++    for (int cellIndex = 0; cellIndex < pPage->nCell; cellIndex++)
++    {
++        childPageIndex = pPage->leaf == 0 ? get4byte(findCell(pPage, cellIndex)) : -1;
++        char **payload = sqlite3DebugGetCellPayloadAndRowId(pCur, pPage, cellIndex);
++        printf(
++            "sqlite3DebugBtreeIndexDump: cell, number=%d, leftChildPageNumber=%d, payload=%s, rowId=%s\n",
++            cellIndex,
++            childPageIndex <= pCur->pBt->nPage ? childPageIndex : -1,
++            payload[0],
++            payload[1]);
++        sqlite3DebugFreeCellPayloadAndRowId(payload);
++
++        pages[cellIndex + 1] = childPageIndex;
++    }
++
++    releasePage(pPage);
++
++    for (int cellIndex = 0; cellIndex < pagesCount; cellIndex++)
++    {
++        if (pages[cellIndex] > 0)
++        {
++            sqlite3DebugBtreeIndexDump(pCur, pages[cellIndex]);
++        }
++    }
++}
+diff --git src/debug.h src/debug.h
+index e69de29bb..834215936 100644
+--- src/debug.h
++++ src/debug.h
+@@ -0,0 +1,21 @@
++#ifndef SQLITE_DEBUG_H
++#define SQLITE_DEBUG_H
++
++#include "btree.h"
++#include "vdbe.h"
++
++int sqlite3DebugIsBtreeIndexSeekEnabled();
++
++int sqlite3DebugIsBtreeIndexDumpEnabled();
++
++char *sqlite3DebugGetMemoryPayload(Mem *mem);
++
++void sqlite3DebugFreeMemoryPayload(char *payload);
++
++char **sqlite3DebugGetCellPayloadAndRowId(BtCursor *pCur, MemPage *pPage, int cellIndex);
++
++void sqlite3DebugFreeCellPayloadAndRowId(char **payload);
++
++void sqlite3DebugBtreeIndexDump(BtCursor *pCur, int pageNumber);
++
++#endif
+diff --git src/vdbe.c src/vdbe.c
+index d8b471de2..388258996 100644
+--- src/vdbe.c
++++ src/vdbe.c
+@@ -1693,6 +1693,10 @@ case OP_ResultRow: {
+   assert( pOp->p1>0 || CORRUPT_DB );
+   assert( pOp->p1+pOp->p2<=(p->nMem+1 - p->nCursor)+1 );
+ 
++  if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++          printf("sqlite3DebugResultRow:\n");
++        }
++
+   p->cacheCtr = (p->cacheCtr + 2)|1;
+   p->pResultRow = &aMem[pOp->p1];
+ #ifdef SQLITE_DEBUG
+@@ -2227,6 +2231,11 @@ case OP_Ge: {             /* same as TK_GE, jump, in1, in3 */
+   flags1 = pIn1->flags;
+   flags3 = pIn3->flags;
+   if( (flags1 & flags3 & MEM_Int)!=0 ){
++
++    if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBreeIndexFilterCompare: type=int, p1=%lld, p2=%lld\n", pIn3->u.i, pIn1->u.i);
++      }
++
+     /* Common case of comparison of two integers */
+     if( pIn3->u.i > pIn1->u.i ){
+       if( sqlite3aGTb[pOp->opcode] ){
+@@ -4869,6 +4878,11 @@ case OP_SeekGT: {       /* jump0, in3, group, ncycle */
+     }
+ #endif
+     r.eqSeen = 0;
++
++    if(sqlite3DebugIsBtreeIndexDumpEnabled()) {
++        sqlite3DebugBtreeIndexDump(pC->uc.pCursor, pC->uc.pCursor->pgnoRoot);
++    }
++
+     rc = sqlite3BtreeIndexMoveto(pC->uc.pCursor, &r, &res);
+     if( rc!=SQLITE_OK ){
+       goto abort_due_to_error;
+diff --git src/vdbeaux.c src/vdbeaux.c
+index e4c174e3f..7199c6dfb 100644
+--- src/vdbeaux.c
++++ src/vdbeaux.c
+@@ -4754,6 +4754,10 @@ int sqlite3VdbeRecordCompareWithSkip(
+ 
+     /* RHS is an integer */
+     if( pRhs->flags & (MEM_Int|MEM_IntReal) ){
++      if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++          printf("sqlite3DebugBtreeIndexCompare: index=%d, type=int, value=%lld\n", idx1, pRhs->u.i);
++      }
++
+       testcase( pRhs->flags & MEM_Int );
+       testcase( pRhs->flags & MEM_IntReal );
+       serial_type = aKey1[idx1];
+@@ -4778,6 +4782,10 @@ int sqlite3VdbeRecordCompareWithSkip(
+ 
+     /* RHS is real */
+     else if( pRhs->flags & MEM_Real ){
++    if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++              printf("sqlite3DebugBtreeIndexCompare: index=%d, type=real, value=%.2f\n", idx1, pRhs->u.r);
++          }
++
+       serial_type = aKey1[idx1];
+       if( serial_type>=10 ){
+         /* Serial types 12 or greater are strings and blobs (greater than
+@@ -4807,6 +4815,10 @@ int sqlite3VdbeRecordCompareWithSkip(
+ 
+     /* RHS is a string */
+     else if( pRhs->flags & MEM_Str ){
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBtreeIndexCompare: index=%d, type=string, value=%s\n", idx1, pRhs->z);
++      }
++
+       getVarint32NR(&aKey1[idx1], serial_type);
+       testcase( serial_type==12 );
+       if( serial_type<12 ){
+@@ -4840,6 +4852,10 @@ int sqlite3VdbeRecordCompareWithSkip(
+ 
+     /* RHS is a blob */
+     else if( pRhs->flags & MEM_Blob ){
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBtreeIndexCompare: index=%d, type=blob, value=%s\n", idx1, pRhs->z);
++      }
++
+       assert( (pRhs->flags & MEM_Zero)==0 || pRhs->n==0 );
+       getVarint32NR(&aKey1[idx1], serial_type);
+       testcase( serial_type==12 );
+@@ -4868,6 +4884,10 @@ int sqlite3VdbeRecordCompareWithSkip(
+ 
+     /* RHS is null */
+     else{
++      if (sqlite3DebugIsBtreeIndexSeekEnabled()) {
++        printf("sqlite3DebugBtreeIndexCompare: index=%d, type=null, value=NULL\n", idx1);
++      }
++
+       serial_type = aKey1[idx1];
+       if( serial_type==0
+        || serial_type==10
+@@ -4950,6 +4970,10 @@ static int vdbeRecordCompareInt(
+   i64 v;
+   i64 lhs;
+ 
++  if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++    printf("sqlite3DebugBtreeIndexCompare: index=1, type=int, value=%lld\n", pPKey2->u.i);
++  }
++
+   vdbeAssertFieldCountWithinLimits(nKey1, pKey1, pPKey2->pKeyInfo);
+   assert( (*(u8*)pKey1)<=0x3F || CORRUPT_DB );
+   switch( serial_type ){
+@@ -5041,6 +5065,10 @@ static int vdbeRecordCompareString(
+   int serial_type;
+   int res;
+ 
++  if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
++    printf("sqlite3DebugBtreeIndexCompare: index=1, type=string, value=%s\n", pPKey2->u.z);
++  }
++
+   assert( pPKey2->aMem[0].flags & MEM_Str );
+   assert( pPKey2->aMem[0].n == pPKey2->n );
+   assert( pPKey2->aMem[0].z == pPKey2->u.z );
+diff --git tool/mksqlite3c.tcl tool/mksqlite3c.tcl
+index ef8353df4..9df3d1c69 100644
+--- tool/mksqlite3c.tcl
++++ tool/mksqlite3c.tcl
+@@ -194,6 +194,7 @@ foreach hdr {
+    wal.h
+    whereInt.h
+    sqlite3recover.h
++   debug.h
+ } {
+   set available_hdr($hdr) 1
+ }
+@@ -417,6 +418,7 @@ set flist {
+    btmutex.c
+    btree.c
+    backup.c
++   debug.c
+ 
+    vdbemem.c
+    vdbeaux.c
