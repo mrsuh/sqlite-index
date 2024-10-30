@@ -26,11 +26,11 @@ php bin/console app:render-search --dumpIndexPath=data/search/dump/search-range-
 #search-order
 php bin/console app:database-generate --type=search-order --count=1000000 --databasePath=data/search/database/search-order.sqlite --infoPath=data/search/database/search-order.txt
 sh bin/dump-index.sh data/search/database/search-order.sqlite "SELECT * FROM table_test INDEXED BY idx_asc WHERE column1 = 1;" data/search/dump/search-order-asc-index.txt
-sh bin/dump-search.sh data/search/database/search-order.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx_asc WHERE column1 IN (1,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000);" data/search/dump/search-order-asc.txt
+sh bin/dump-search.sh data/search/database/search-order.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx_asc WHERE column1 IN (1,500000,1000000);" data/search/dump/search-order-asc.txt
 php bin/console app:render-search --dumpIndexPath=data/search/dump/search-order-asc-index.txt --dumpSearchPath=data/search/dump/search-order-asc.txt --outputImagePath=data/search/render/search-order-asc.webp --outputInfoPath=data/search/render/search-order-asc.txt
 
 sh bin/dump-index.sh data/search/database/search-order.sqlite "SELECT * FROM table_test INDEXED BY idx_desc WHERE column1 = 1;" data/search/dump/search-order-desc-index.txt
-sh bin/dump-search.sh data/search/database/search-order.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx_desc WHERE column1 IN (1,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000);" data/search/dump/search-order-desc.txt
+sh bin/dump-search.sh data/search/database/search-order.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx_desc WHERE column1 IN (1,500000,1000000);" data/search/dump/search-order-desc.txt
 php bin/console app:render-search --dumpIndexPath=data/search/dump/search-order-desc-index.txt --dumpSearchPath=data/search/dump/search-order-desc.txt --outputImagePath=data/search/render/search-order-desc.webp --outputInfoPath=data/search/render/search-order-desc.txt
 
 #search-greater-than
@@ -41,8 +41,8 @@ php bin/console app:render-search --dumpIndexPath=data/search/dump/search-greate
 
 #search-expression
 php bin/console app:database-generate --type=search-expression --count=1000000 --databasePath=data/search/database/search-expression.sqlite --infoPath=data/search/database/search-expression.txt
-sh bin/dump-index.sh data/search/database/search-expression.sqlite "SELECT * FROM table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S',column1, 'unixepoch') = '1970-01-01 00:00:01';" data/search/dump/search-expression-index.txt
-sh bin/dump-search.sh data/search/database/search-expression.sqlite "SELECT rowId, column1, strftime('%Y-%m-%d %H:%M:%S',column1, 'unixepoch') AS date FROM table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S',column1, 'unixepoch') = '1970-01-01 00:00:01';" data/search/dump/search-expression.txt
+sh bin/dump-index.sh data/search/database/search-expression.sqlite "SELECT * FROM table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S',json_extract(column1, '$.timestamp'), 'unixepoch') = '1970-01-01 00:00:01';" data/search/dump/search-expression-index.txt
+sh bin/dump-search.sh data/search/database/search-expression.sqlite "SELECT rowId, strftime('%Y-%m-%d %H:%M:%S',json_extract(column1, '$.timestamp'), 'unixepoch') AS date FROM table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S',json_extract(column1, '$.timestamp'), 'unixepoch') = '1970-01-01 00:00:01';" data/search/dump/search-expression.txt
 php bin/console app:render-search --dumpIndexPath=data/search/dump/search-expression-index.txt --dumpSearchPath=data/search/dump/search-expression.txt --outputImagePath=data/search/render/search-expression.webp --outputInfoPath=data/search/render/search-expression.txt
 
 #search-unique

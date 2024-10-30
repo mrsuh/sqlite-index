@@ -129,14 +129,16 @@ class Search
 
     private static function countCompare(array $lines): array
     {
-        $count = [
-            'search' => 0,
-            'filter' => 0,
-        ];
+        $count = ['search' => 0, 'filter' => 0, 'other' => 0];
         $key = 'other';
         $started = false;
+        $finished = false;
         foreach ($lines as $line) {
             if (str_starts_with($line, 'sqlite3DebugBtreeIndexMoveto: key')) {
+                if ($started && !$finished) {
+                    $count['search'] = 0;
+                    $count['filter'] = 0;
+                }
                 $started = true;
                 $key = 'search';
                 continue;
@@ -156,6 +158,7 @@ class Search
 
             if (str_starts_with($line, 'sqlite3DebugResultRow:')) {
                 $key = 'filter';
+                $finished = true;
             }
         }
 

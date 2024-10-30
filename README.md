@@ -25,11 +25,15 @@ sh bin/test-search.sh
 git clone git@github.com:sqlite/sqlite.git
 cd sqlite
 git checkout tags/version-3.46.0
-git apply ../sqlite.patch
+patch -p0 --force < ../sqlite.patch
 cd ..
-cd build
+mkdir build && cd build
 make clean
 ../sqlite/configure CPPFLAGS="-DSQLITE_DEBUG -DSQLITE_ENABLE_EXPLAIN_COMMENTS -DSQLITE_ENABLE_TREETRACE -DSQLITE_ENABLE_WHERETRACE -DSQLITE_ENABLE_STMT_SCANSTATUS"
 make sqlite3
-git diff --no-prefix > sqlite.patch
+git diff --no-prefix HEAD > sqlite.patch
+```
+
+```bash
+docker build --platform linux/x86_64 -t mrsuh/sqlite-index .
 ```

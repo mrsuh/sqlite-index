@@ -7,20 +7,27 @@ use App\Render;
 
 abstract class Prepare
 {
-    public string $headerFontColor = '#1E1E1E';
+    private const DARK_BACKGROUND_COLOR = '#26408B';
+    private const LIGHT_BACKGROUND_COLOR = '#64B4F0';
+    private const SELECTED_BACKGROUND_COLOR = '#FF9505';
 
-    public string $layerHeaderFontColor = '#FFFFFF';
-    public string $layerHeaderBackgroundColor = '#234787';
+    private const DARK_FONT_COLOR = '#1E1E1E';
+    private const LIGHT_FONT_COLOR = '#FFFFFF';
 
-    public string $arrowBackgroundColor = '#1E1E1E';
+    public string $headerFontColor = self::DARK_FONT_COLOR;
 
-    public string $fontColorBlack = '#1E1E1E';
-    public string $fontColorWhite = '#FFFFFF';
+    public string $layerHeaderFontColor = self::LIGHT_FONT_COLOR;
+    public string $layerHeaderBackgroundColor = self::DARK_BACKGROUND_COLOR;
 
-    public string $pageBackgroundColor = '#234787';
-    public string $selectedPageBackgroundColor = '#E4483A';
-    public string $cellBackgroundColor = '#51A0B1';
-    public string $selectedCellBackgroundColor = '#E4483A';
+    public string $arrowBackgroundColor = self::DARK_FONT_COLOR;
+
+    public string $fontColorBlack = self::DARK_FONT_COLOR;
+    public string $fontColorWhite = self::LIGHT_FONT_COLOR;
+
+    public string $pageBackgroundColor = self::DARK_BACKGROUND_COLOR;
+    public string $selectedPageBackgroundColor = self::SELECTED_BACKGROUND_COLOR;
+    public string $cellBackgroundColor = self::LIGHT_BACKGROUND_COLOR;
+    public string $selectedCellBackgroundColor = self::SELECTED_BACKGROUND_COLOR;
 
     abstract public function getHeaders(): array;
 

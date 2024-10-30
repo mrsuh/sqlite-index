@@ -66,11 +66,16 @@ class DatabaseGenerateCommand extends Command
                 break;
             case 'index-expression':
             case 'search-expression':
-                $queries[] = self::sql($db, 'CREATE TABLE table_test (column1 INT NOT NULL);');
-                foreach (self::generateIntegerValues($max, $step) as $values) {
-                    $queries[] = self::sql($db, sprintf('INSERT INTO table_test (column1) VALUES %s;', $values));
+                $queries[] = self::sql($db, 'CREATE TABLE table_test (column1 TEXT NOT NULL);');
+                for ($i = 1; $i <= $max; $i += $step) {
+                    $values = '';
+                    for ($value = $i; $value < $i + $step; $value++) {
+                        $values .= sprintf("('%s'),", json_encode(['timestamp' => $value]));
+                    }
+                    $queries[] = self::sql($db, sprintf('INSERT INTO table_test (column1) VALUES %s;', rtrim($values, ',')));
                 }
-                $queries[] = self::sql($db, "CREATE INDEX idx ON table_test (strftime('%Y-%m-%d %H:%M:%S',column1, 'unixepoch') ASC);");
+
+                $queries[] = self::sql($db, "CREATE INDEX idx ON table_test (strftime('%Y-%m-%d %H:%M:%S', json_extract(column1, '$.timestamp'), 'unixepoch') ASC);");
                 break;
             case 'index-unique':
             case 'search-unique':

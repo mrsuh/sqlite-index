@@ -30,7 +30,7 @@ class DiffIndexCommand extends Command
             'Total pages',
             'Total cells',
         ]);
-        foreach($input->getOption('dumpIndexPath') as $index => $dumpIndexPath) {
+        foreach ($input->getOption('dumpIndexPath') as $index => $dumpIndexPath) {
             $tree = Parser\Index::parse($dumpIndexPath);
             $table->addRow([
                 $index === 0 ? 'Before' : 'After',

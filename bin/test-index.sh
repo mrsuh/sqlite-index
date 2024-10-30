@@ -34,7 +34,7 @@ php bin/console app:render-index --dumpIndexPath=data/index/dump/index-order-des
 
 #index-expression
 php bin/console app:database-generate --type=index-expression --count=1000000 --databasePath=data/index/database/index-expression.sqlite --infoPath=data/index/database/index-expression.txt
-sh bin/dump-index.sh data/index/database/index-expression.sqlite "SELECT * FROM  table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S',column1, 'unixepoch') = '1970-01-01 00:00:01';" data/index/dump/index-expression.txt
+sh bin/dump-index.sh data/index/database/index-expression.sqlite "SELECT * FROM  table_test INDEXED BY idx WHERE strftime('%Y-%m-%d %H:%M:%S', json_extract(column1, '$.timestamp'), 'unixepoch') = '1970-01-01 00:00:01';" data/index/dump/index-expression.txt
 php bin/console app:render-index --dumpIndexPath=data/index/dump/index-expression.txt --outputImagePath=data/index/render/index-expression.webp
 
 #index-unique

@@ -1,5 +1,5 @@
 diff --git Makefile.in Makefile.in
-index c16e1c127..1266f03bf 100644
+index c16e1c127d..1266f03bf0 100644
 --- Makefile.in
 +++ Makefile.in
 @@ -213,6 +213,8 @@ SRC = \
@@ -12,7 +12,7 @@ index c16e1c127..1266f03bf 100644
    $(TOP)/src/btmutex.c \
    $(TOP)/src/btree.c \
 diff --git src/btree.c src/btree.c
-index 62b898979..bf987cdcb 100644
+index 62b8989796..bf987cdcbd 100644
 --- src/btree.c
 +++ src/btree.c
 @@ -14,6 +14,7 @@
@@ -118,8 +118,9 @@ index 62b898979..bf987cdcb 100644
    UNUSED_PARAMETER( flags );  /* Used in COMDB2 but not native SQLite */
    assert( cursorOwnsBtShared(pCur) );
 diff --git src/debug.c src/debug.c
-index e69de29bb..5f50e5720 100644
---- src/debug.c
+new file mode 100644
+index 0000000000..5f50e57206
+--- /dev/null
 +++ src/debug.c
 @@ -0,0 +1,156 @@
 +int sqlite3DebugIsBtreeIndexSeekEnabled() {
@@ -279,8 +280,9 @@ index e69de29bb..5f50e5720 100644
 +    }
 +}
 diff --git src/debug.h src/debug.h
-index e69de29bb..834215936 100644
---- src/debug.h
+new file mode 100644
+index 0000000000..834215936c
+--- /dev/null
 +++ src/debug.h
 @@ -0,0 +1,21 @@
 +#ifndef SQLITE_DEBUG_H
@@ -305,7 +307,7 @@ index e69de29bb..834215936 100644
 +
 +#endif
 diff --git src/vdbe.c src/vdbe.c
-index d8b471de2..388258996 100644
+index d8b471de2e..3882589965 100644
 --- src/vdbe.c
 +++ src/vdbe.c
 @@ -1693,6 +1693,10 @@ case OP_ResultRow: {
@@ -344,7 +346,7 @@ index d8b471de2..388258996 100644
      if( rc!=SQLITE_OK ){
        goto abort_due_to_error;
 diff --git src/vdbeaux.c src/vdbeaux.c
-index e4c174e3f..7199c6dfb 100644
+index e4c174e3fb..8ae82805d4 100644
 --- src/vdbeaux.c
 +++ src/vdbeaux.c
 @@ -4754,6 +4754,10 @@ int sqlite3VdbeRecordCompareWithSkip(
@@ -402,17 +404,17 @@ index e4c174e3f..7199c6dfb 100644
        serial_type = aKey1[idx1];
        if( serial_type==0
         || serial_type==10
-@@ -4950,6 +4970,10 @@ static int vdbeRecordCompareInt(
-   i64 v;
-   i64 lhs;
- 
+@@ -5005,6 +5025,10 @@ static int vdbeRecordCompareInt(
+     default:
+       return sqlite3VdbeRecordCompare(nKey1, pKey1, pPKey2);
+   }
++  
 +  if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
 +    printf("sqlite3DebugBtreeIndexCompare: index=1, type=int, value=%lld\n", pPKey2->u.i);
-+  }
-+
-   vdbeAssertFieldCountWithinLimits(nKey1, pKey1, pPKey2->pKeyInfo);
-   assert( (*(u8*)pKey1)<=0x3F || CORRUPT_DB );
-   switch( serial_type ){
++  }  
+ 
+   assert( pPKey2->u.i == pPKey2->aMem[0].u.i );
+   v = pPKey2->u.i;
 @@ -5041,6 +5065,10 @@ static int vdbeRecordCompareString(
    int serial_type;
    int res;
@@ -425,7 +427,7 @@ index e4c174e3f..7199c6dfb 100644
    assert( pPKey2->aMem[0].n == pPKey2->n );
    assert( pPKey2->aMem[0].z == pPKey2->u.z );
 diff --git tool/mksqlite3c.tcl tool/mksqlite3c.tcl
-index ef8353df4..9df3d1c69 100644
+index ef8353df4f..9df3d1c69e 100644
 --- tool/mksqlite3c.tcl
 +++ tool/mksqlite3c.tcl
 @@ -194,6 +194,7 @@ foreach hdr {

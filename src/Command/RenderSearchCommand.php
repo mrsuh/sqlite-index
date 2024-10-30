@@ -84,7 +84,6 @@ class RenderSearchCommand extends Command
         $output = new BufferedOutput();
 
         $output->writeln(trim($search->query));
-        $output->writeln(trim($search->explain));
         $output->writeln(trim($search->result));
 
         file_put_contents($filePath, $output->fetch());
