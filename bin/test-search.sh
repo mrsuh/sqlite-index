@@ -16,6 +16,12 @@ sh bin/dump-index.sh data/search/database/search-equal.sqlite "SELECT * FROM tab
 sh bin/dump-search.sh data/search/database/search-equal.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx WHERE column1 = 1;" data/search/dump/search-equal.txt
 php bin/console app:render-search --dumpIndexPath=data/search/dump/search-equal-index.txt --dumpSearchPath=data/search/dump/search-equal.txt --outputImagePath=data/search/render/search-equal.webp --outputInfoPath=data/search/render/search-equal.txt
 
+#search-equal-1000
+php bin/console app:database-generate --type=search-equal --count=1000 --databasePath=data/search/database/search-equal-1000.sqlite --infoPath=data/search/database/search-equal-1000.txt
+sh bin/dump-index.sh data/search/database/search-equal-1000.sqlite "SELECT * FROM table_test INDEXED BY idx WHERE column1 = 1;" data/search/dump/search-equal-index-1000.txt
+sh bin/dump-search.sh data/search/database/search-equal-1000.sqlite "SELECT rowId, column1 FROM table_test INDEXED BY idx WHERE column1 = 1;" data/search/dump/search-equal-1000.txt
+php bin/console app:render-search --dumpIndexPath=data/search/dump/search-equal-index-1000.txt --dumpSearchPath=data/search/dump/search-equal-1000.txt --outputImagePath=data/search/render/search-equal-1000.webp --outputInfoPath=data/search/render/search-equal-1000.txt
+
 #search-range
 php bin/console app:database-generate --type=search-range --count=1000000 --databasePath=data/search/database/search-range.sqlite --infoPath=data/search/database/search-range.txt
 sh bin/dump-index.sh data/search/database/search-range.sqlite "SELECT * FROM table_test INDEXED BY idx WHERE column1 = 1;" data/search/dump/search-range-index.txt
