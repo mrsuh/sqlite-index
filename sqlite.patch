@@ -307,7 +307,7 @@ index 0000000000..834215936c
 +
 +#endif
 diff --git src/vdbe.c src/vdbe.c
-index d8b471de2e..3882589965 100644
+index d8b471de2e..f19a029c45 100644
 --- src/vdbe.c
 +++ src/vdbe.c
 @@ -1693,6 +1693,10 @@ case OP_ResultRow: {
@@ -327,7 +327,7 @@ index d8b471de2e..3882589965 100644
    if( (flags1 & flags3 & MEM_Int)!=0 ){
 +
 +    if(sqlite3DebugIsBtreeIndexSeekEnabled()) {
-+        printf("sqlite3DebugBreeIndexFilterCompare: type=int, p1=%lld, p2=%lld\n", pIn3->u.i, pIn1->u.i);
++        printf("sqlite3DebugBtreeIndexFilterCompare: type=int, p1=%lld, p2=%lld\n", pIn3->u.i, pIn1->u.i);
 +      }
 +
      /* Common case of comparison of two integers */
